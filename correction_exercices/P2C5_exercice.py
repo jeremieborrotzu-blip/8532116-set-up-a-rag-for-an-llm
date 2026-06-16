@@ -4,113 +4,113 @@ from unittest.mock import patch, MagicMock
 import datetime
 
 
-# Importer les fonctions à tester
-from utils.database import log_interaction, log_feedback, Interaction # Assurez-vous que Interaction est importable
+# Import the functions to test
+from utils.database import log_interaction, log_feedback, Interaction # Make sure Interaction is importable
 
 
 class TestDatabaseFunctions(unittest.TestCase):
 
 
-    @patch('utils.database.SessionLocal') # Patcher SessionLocal où elle est définie/importée
+    @patch('utils.database.SessionLocal') # Patch SessionLocal where it is defined/imported
     def test_log_interaction_success(self, MockSessionLocal):
-        """Vérifie que log_interaction appelle les bonnes méthodes de session."""
-        # Configurer le mock de la session et de ses méthodes
+        """Checks that log_interaction calls the right session methods."""
+        # Configure the mock of the session and its methods
         mock_db_session = MagicMock()
         MockSessionLocal.return_value = mock_db_session
 
 
-        # Simuler l'objet Interaction créé et le retour de db.refresh()
+        # Simulate the created Interaction object and the return of db.refresh()
         mock_interaction_instance = MagicMock(spec=Interaction)
-        mock_interaction_instance.id = 123 # Simuler un ID retourné
+        mock_interaction_instance.id = 123 # Simulate a returned ID
         def refresh_side_effect(instance):
-            # Simuler l'assignation de l'ID par la DB lors du refresh
+            # Simulate the assignment of the ID by the DB during the refresh
             instance.id = 123
         mock_db_session.refresh.side_effect = refresh_side_effect
 
 
-        # Données d'exemple
-        test_query = "Quelle heure est-il ?"
-        test_contexts = ["Le contexte 1", "Le contexte 2"]
-        test_response = "Il est l'heure de coder !"
+        # Sample data
+        test_query = "What time is it?"
+        test_contexts = ["Context 1", "Context 2"]
+        test_response = "It's time to code!"
 
 
-        # Appel de la fonction
+        # Call the function
         returned_id = log_interaction(test_query, test_contexts, test_response)
 
 
-        # Vérifications
-        # 1. Est-ce que SessionLocal() a été appelé pour obtenir une session ?
+        # Assertions
+        # 1. Was SessionLocal() called to get a session?
         MockSessionLocal.assert_called_once()
 
 
-        # 2. Est-ce que db.add a été appelé avec un objet Interaction ?
+        # 2. Was db.add called with an Interaction object?
         self.assertEqual(mock_db_session.add.call_count, 1)
-        added_object = mock_db_session.add.call_args[0][0] # Récupérer l'objet passé à add
+        added_object = mock_db_session.add.call_args[0][0] # Get the object passed to add
         self.assertIsInstance(added_object, Interaction)
         self.assertEqual(added_object.user_query, test_query)
         self.assertEqual(added_object.llm_response, test_response)
         self.assertEqual(added_object.contexts, test_contexts)
 
 
-        # 3. Est-ce que db.commit a été appelé ?
+        # 3. Was db.commit called?
         mock_db_session.commit.assert_called_once()
 
 
-        # 4. Est-ce que db.refresh a été appelé (pour obtenir l'ID) ?
+        # 4. Was db.refresh called (to get the ID)?
         mock_db_session.refresh.assert_called_once_with(added_object)
 
 
-        # 5. La fonction retourne-t-elle l'ID simulé ?
+        # 5. Does the function return the simulated ID?
         self.assertEqual(returned_id, 123)
 
 
-        # 6. Est-ce que db.close a été appelé ?
+        # 6. Was db.close called?
         mock_db_session.close.assert_called_once()
 
 
     @patch('utils.database.SessionLocal')
     def test_log_feedback_updates_score(self, MockSessionLocal):
-      """Vérifie que log_feedback met à jour le score de l'interaction."""
-      # Configurer le mock de la session
+      """Checks that log_feedback updates the interaction score."""
+      # Configure the mock of the session
       mock_db_session = MagicMock()
       MockSessionLocal.return_value = mock_db_session
 
 
-      # Simuler l'objet Interaction trouvé par la requête
+      # Simulate the Interaction object found by the query
       mock_interaction_found = MagicMock(spec=Interaction)
       mock_interaction_found.id = 456
-      mock_interaction_found.feedback_score = None # Score initial
+      mock_interaction_found.feedback_score = None # Initial score
 
 
-      # Configurer query().filter().first() pour retourner notre mock
+      # Configure query().filter().first() to return our mock
       mock_db_session.query.return_value.filter.return_value.first.return_value = mock_interaction_found
 
 
-      # Données d'exemple
+      # Sample data
       test_interaction_id = 456
-      test_score = 1 # Feedback positif
+      test_score = 1 # Positive feedback
 
 
-      # Appel de la fonction
+      # Call the function
       log_feedback(test_interaction_id, test_score)
 
 
-      # Vérifications
-      # 1. Est-ce que query(Interaction).filter(Interaction.id == ...).first() a été appelé ?
+      # Assertions
+      # 1. Was query(Interaction).filter(Interaction.id == ...).first() called?
       mock_db_session.query.assert_called_once_with(Interaction)
-      mock_db_session.query.return_value.filter.assert_called_once() # Vérifier l'appel à filter
+      mock_db_session.query.return_value.filter.assert_called_once() # Check the call to filter
       mock_db_session.query.return_value.filter.return_value.first.assert_called_once()
 
 
-      # 2. Le score de l'objet Interaction trouvé a-t-il été mis à jour ?
+      # 2. Was the score of the found Interaction object updated?
       self.assertEqual(mock_interaction_found.feedback_score, test_score)
 
 
-      # 3. Est-ce que db.commit a été appelé ?
+      # 3. Was db.commit called?
       mock_db_session.commit.assert_called_once()
 
 
-      # 4. Est-ce que db.close a été appelé ?
+      # 4. Was db.close called?
       mock_db_session.close.assert_called_once()
 
 

@@ -1,4 +1,4 @@
-# MistralChat.py (version RAG)
+# MistralChat.py (RAG version)
 import streamlit as st
 import os
 import logging
@@ -6,7 +6,7 @@ from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 from dotenv import load_dotenv
 
-# --- Importations depuis vos modules ---
+# --- Imports from your modules ---
 try:
     from utils.config import (
         MISTRAL_API_KEY, MODEL_NAME, SEARCH_K,
@@ -14,187 +14,187 @@ try:
     )
     from utils.vector_store import VectorStoreManager
 except ImportError as e:
-    st.error(f"Erreur d'importation: {e}. Vérifiez la structure de vos dossiers et les fichiers dans 'utils'.")
+    st.error(f"Import error: {e}. Check your folder structure and the files in 'utils'.")
     st.stop()
 
 
-# --- Configuration du Logging ---
-# Note: Streamlit peut avoir sa propre gestion de logs. Configurer ici est une bonne pratique.
+# --- Logging Configuration ---
+# Note: Streamlit may have its own log handling. Configuring here is good practice.
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
 
-# --- Configuration de l'API Mistral ---
+# --- Mistral API Configuration ---
 api_key = MISTRAL_API_KEY
 model = MODEL_NAME
 
 if not api_key:
-    st.error("Erreur : Clé API Mistral non trouvée (MISTRAL_API_KEY). Veuillez la définir dans le fichier .env.")
+    st.error("Error: Mistral API key not found (MISTRAL_API_KEY). Please set it in the .env file.")
     st.stop()
 
 try:
     client = MistralClient(api_key=api_key)
-    logging.info("Client Mistral initialisé.")
+    logging.info("Mistral client initialized.")
 except Exception as e:
-    st.error(f"Erreur lors de l'initialisation du client Mistral : {e}")
-    logging.exception("Erreur initialisation client Mistral")
+    st.error(f"Error while initializing the Mistral client: {e}")
+    logging.exception("Mistral client initialization error")
     st.stop()
 
-# --- Chargement du Vector Store (mis en cache) ---
-@st.cache_resource # Garde le manager chargé en mémoire pour la session
+# --- Loading the Vector Store (cached) ---
+@st.cache_resource # Keeps the manager loaded in memory for the session
 def get_vector_store_manager():
-    logging.info("Tentative de chargement du VectorStoreManager...")
+    logging.info("Attempting to load the VectorStoreManager...")
     try:
         manager = VectorStoreManager()
-        # Vérifie si l'index a bien été chargé par le constructeur
+        # Check whether the index was properly loaded by the constructor
         if manager.index is None or not manager.document_chunks:
-            st.error("L'index vectoriel ou les chunks n'ont pas pu être chargés.")
-            st.warning("Assurez-vous d'avoir exécuté 'python indexer.py' après avoir placé vos fichiers dans le dossier 'inputs'.")
-            logging.error("Index Faiss ou chunks non trouvés/chargés par VectorStoreManager.")
-            return None # Retourne None si échec
-        logging.info(f"VectorStoreManager chargé avec succès ({manager.index.ntotal} vecteurs).")
+            st.error("The vector index or the chunks could not be loaded.")
+            st.warning("Make sure you have run 'python indexer.py' after placing your files in the 'inputs' folder.")
+            logging.error("Faiss index or chunks not found/loaded by VectorStoreManager.")
+            return None # Return None on failure
+        logging.info(f"VectorStoreManager loaded successfully ({manager.index.ntotal} vectors).")
         return manager
     except FileNotFoundError:
-         st.error("Fichiers d'index ou de chunks non trouvés.")
-         st.warning("Veuillez exécuter 'python indexer.py' pour créer la base de connaissances.")
-         logging.error("FileNotFoundError lors de l'init de VectorStoreManager.")
+         st.error("Index or chunks files not found.")
+         st.warning("Please run 'python indexer.py' to create the knowledge base.")
+         logging.error("FileNotFoundError during the VectorStoreManager init.")
          return None
     except Exception as e:
-        st.error(f"Erreur inattendue lors du chargement du VectorStoreManager: {e}")
-        logging.exception("Erreur chargement VectorStoreManager")
+        st.error(f"Unexpected error while loading the VectorStoreManager: {e}")
+        logging.exception("VectorStoreManager loading error")
         return None
 
 vector_store_manager = get_vector_store_manager()
 
-# --- Prompt Système pour RAG ---
-# Adaptez ce prompt selon vos besoins
-SYSTEM_PROMPT = f"""Tu es un assistant virtuel expert pour la mairie de {COMMUNE_NAME}.
-Ta mission est de répondre aux questions des citoyens de manière précise, factuelle et polie, en te basant **exclusivement** sur les informations fournies dans le CONTEXTE ci-dessous.
+# --- System Prompt for RAG ---
+# Adapt this prompt to your needs
+SYSTEM_PROMPT = f"""You are an expert virtual assistant for {COMMUNE_NAME} City Hall.
+Your mission is to answer residents' questions accurately, factually and politely, based **exclusively** on the information provided in the CONTEXT below.
 
-Instructions importantes:
-1.  **Base ta réponse UNIQUEMENT sur le CONTEXTE.** N'invente aucune information.
-2.  Si le CONTEXTE contient l'information pour répondre à la QUESTION, synthétise-la clairement.
-3.  Si le CONTEXTE ne contient PAS d'information pertinente pour répondre à la QUESTION, réponds poliment que tu n'as pas trouvé l'information dans la base de connaissances actuelle et suggère de contacter directement les services de la mairie. Ne cherche pas la réponse ailleurs.
-4.  Ne réponds pas à des questions hors sujet (non liées à la mairie ou aux informations du contexte).
-5.  Si possible, mentionne la source (par exemple, le nom du fichier) si elle est indiquée dans le contexte.
-6.  Garde tes réponses concises et faciles à comprendre.
+Important instructions:
+1.  **Base your answer ONLY on the CONTEXT.** Do not make up any information.
+2.  If the CONTEXT contains the information to answer the QUESTION, summarize it clearly.
+3.  If the CONTEXT does NOT contain relevant information to answer the QUESTION, politely reply that you did not find the information in the current knowledge base and suggest contacting the City Hall services directly. Do not look for the answer elsewhere.
+4.  Do not answer off-topic questions (unrelated to City Hall or to the context information).
+5.  If possible, mention the source (for example, the file name) if it is indicated in the context.
+6.  Keep your answers concise and easy to understand.
 
-CONTEXTE FOURNI:
+PROVIDED CONTEXT:
 ---
 {{context_str}}
 ---
 
-QUESTION DU CITOYEN:
+RESIDENT'S QUESTION:
 {{question}}
 
-RÉPONSE DE L'ASSISTANT MAIRIE:"""
+CITY HALL ASSISTANT'S ANSWER:"""
 
 
-# --- Initialisation de l'historique de conversation ---
+# --- Initializing the conversation history ---
 if "messages" not in st.session_state:
-    # Message d'accueil initial
-    st.session_state.messages = [{"role": "assistant", "content": f"Bonjour, je suis l'assistant virtuel de la mairie de {COMMUNE_NAME}. Comment puis-je vous aider concernant nos services (basé sur ma base de connaissances) ?"}]
+    # Initial welcome message
+    st.session_state.messages = [{"role": "assistant", "content": f"Hello, I am the virtual assistant for {COMMUNE_NAME} City Hall. How can I help you regarding our services (based on my knowledge base)?"}]
 
-# --- Fonctions ---
+# --- Functions ---
 
-def generer_reponse(prompt_messages: list[ChatMessage]) -> str:
+def generate_response(prompt_messages: list[ChatMessage]) -> str:
     """
-    Envoie le prompt (qui inclut maintenant le contexte) à l'API Mistral.
+    Sends the prompt (which now includes the context) to the Mistral API.
     """
     if not prompt_messages:
-         logging.warning("Tentative de génération de réponse avec un prompt vide.")
-         return "Je ne peux pas traiter une demande vide."
+         logging.warning("Attempt to generate an answer with an empty prompt.")
+         return "I cannot process an empty request."
     try:
-        logging.info(f"Appel à l'API Mistral modèle '{model}' avec {len(prompt_messages)} message(s).")
-        # Log le contenu du prompt (peut être long) - commenter si trop verbeux
-        # logging.debug(f"Prompt envoyé à l'API: {prompt_messages}")
+        logging.info(f"Calling the Mistral API model '{model}' with {len(prompt_messages)} message(s).")
+        # Log the prompt content (may be long) - comment out if too verbose
+        # logging.debug(f"Prompt sent to the API: {prompt_messages}")
 
         response = client.chat(
             model=model,
             messages=prompt_messages,
-            temperature=0.1, # Température basse pour des réponses factuelles basées sur le contexte
+            temperature=0.1, # Low temperature for factual answers based on the context
             # top_p=0.9,
         )
         if response.choices and len(response.choices) > 0:
-            logging.info("Réponse reçue de l'API Mistral.")
+            logging.info("Answer received from the Mistral API.")
             return response.choices[0].message.content
         else:
-            logging.warning("L'API n'a pas retourné de choix valide.")
-            return "Désolé, je n'ai pas pu générer de réponse valide pour le moment."
+            logging.warning("The API did not return a valid choice.")
+            return "Sorry, I could not generate a valid answer at the moment."
     except Exception as e:
-        st.error(f"Erreur lors de l'appel à l'API Mistral: {e}")
-        logging.exception("Erreur API Mistral pendant client.chat")
-        return "Je suis désolé, une erreur technique m'empêche de répondre. Veuillez réessayer plus tard."
+        st.error(f"Error while calling the Mistral API: {e}")
+        logging.exception("Mistral API error during client.chat")
+        return "I am sorry, a technical error prevents me from answering. Please try again later."
 
-# --- Interface Utilisateur Streamlit ---
+# --- Streamlit User Interface ---
 st.title(APP_TITLE)
-st.caption(f"Assistant virtuel pour {COMMUNE_NAME} | Modèle: {model}")
+st.caption(f"Virtual assistant for {COMMUNE_NAME} | Model: {model}")
 
-# Affichage des messages de l'historique (pour l'UI)
+# Display the history messages (for the UI)
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# Zone de saisie utilisateur
-if prompt := st.chat_input(f"Posez votre question sur {COMMUNE_NAME}..."):
-    # 1. Ajouter et afficher le message de l'utilisateur
+# User input area
+if prompt := st.chat_input(f"Ask your question about {COMMUNE_NAME}..."):
+    # 1. Add and display the user message
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.write(prompt)
 
-    # === Début de la logique RAG ===
+    # === Start of the RAG logic ===
 
-    # 2. Vérifier si le Vector Store est disponible
+    # 2. Check whether the Vector Store is available
     if vector_store_manager is None:
-        st.error("Le service de recherche de connaissances n'est pas disponible. Impossible de traiter votre demande.")
-        logging.error("VectorStoreManager non disponible pour la recherche.")
-        # On arrête ici car on ne peut pas faire de RAG
+        st.error("The knowledge search service is not available. Cannot process your request.")
+        logging.error("VectorStoreManager not available for the search.")
+        # We stop here because we cannot do RAG
         st.stop()
 
-    # 3. Rechercher le contexte dans le Vector Store
+    # 3. Search for the context in the Vector Store
     try:
-        logging.info(f"Recherche de contexte pour la question: '{prompt}' avec k={SEARCH_K}")
+        logging.info(f"Searching context for the question: '{prompt}' with k={SEARCH_K}")
         search_results = vector_store_manager.search(prompt, k=SEARCH_K)
-        logging.info(f"{len(search_results)} chunks trouvés dans le Vector Store.")
+        logging.info(f"{len(search_results)} chunks found in the Vector Store.")
     except Exception as e:
-        st.error(f"Une erreur est survenue lors de la recherche d'informations pertinentes: {e}")
-        logging.exception(f"Erreur pendant vector_store_manager.search pour la query: {prompt}")
-        search_results = [] # On continue sans contexte si la recherche échoue
+        st.error(f"An error occurred while searching for relevant information: {e}")
+        logging.exception(f"Error during vector_store_manager.search for the query: {prompt}")
+        search_results = [] # We continue without context if the search fails
 
-    # 4. Formater le contexte pour le prompt LLM
+    # 4. Format the context for the LLM prompt
     context_str = "\n\n---\n\n".join([
-        f"Source: {res['metadata'].get('source', 'Inconnue')} (Score: {res['score']:.1f}%)\nContenu: {res['text']}"
+        f"Source: {res['metadata'].get('source', 'Unknown')} (Score: {res['score']:.1f}%)\nContent: {res['text']}"
         for res in search_results
     ])
 
     if not search_results:
-        context_str = "Aucune information pertinente trouvée dans la base de connaissances pour cette question."
-        logging.warning(f"Aucun contexte trouvé pour la query: {prompt}")
+        context_str = "No relevant information found in the knowledge base for this question."
+        logging.warning(f"No context found for the query: {prompt}")
 
-    # 5. Construire le prompt final pour l'API Mistral en utilisant le System Prompt RAG
+    # 5. Build the final prompt for the Mistral API using the RAG System Prompt
     final_prompt_for_llm = SYSTEM_PROMPT.format(context_str=context_str, question=prompt)
 
-    # Créer la liste de messages pour l'API (juste le prompt système/utilisateur combiné)
+    # Create the list of messages for the API (just the combined system/user prompt)
     messages_for_api = [
-        # On pourrait séparer system et user, mais Mistral gère bien un long message user structuré
+        # We could separate system and user, but Mistral handles a long structured user message well
         ChatMessage(role="user", content=final_prompt_for_llm)
     ]
 
-    # === Fin de la logique RAG ===
+    # === End of the RAG logic ===
 
 
-    # 6. Afficher indicateur + Générer la réponse de l'assistant via LLM
+    # 6. Display indicator + Generate the assistant's answer via the LLM
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
-        message_placeholder.text("...") # Indicateur simple
+        message_placeholder.text("...") # Simple indicator
 
-        # Génération de la réponse de l'assistant en utilisant le prompt augmenté
-        response_content = generer_reponse(messages_for_api)
+        # Generate the assistant's answer using the augmented prompt
+        response_content = generate_response(messages_for_api)
 
-        # Affichage de la réponse complète
+        # Display the full answer
         message_placeholder.write(response_content)
 
-    # 7. Ajouter la réponse de l'assistant à l'historique (pour affichage UI)
+    # 7. Add the assistant's answer to the history (for the UI display)
     st.session_state.messages.append({"role": "assistant", "content": response_content})
 
-# Petit pied de page optionnel
+# Small optional footer
 st.markdown("---")
-st.caption("Propulsé par Mistral AI & Faiss | Mairie de " + COMMUNE_NAME)
+st.caption("Powered by Mistral AI & Faiss | " + COMMUNE_NAME + " City Hall")

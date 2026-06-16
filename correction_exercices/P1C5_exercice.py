@@ -1,8 +1,8 @@
 import spacy
 
 
-# Chargement du modèle de langue français
-nlp = spacy.load("fr_core_news_sm")
+# Loading the English language model
+nlp = spacy.load("en_core_web_sm")
 
 
 def semantic_chunking(text, max_chunk_size=1500):
@@ -22,15 +22,15 @@ def semantic_chunking(text, max_chunk_size=1500):
     return chunks
 
 
-# Lecture du document
-with open("reglementations_municipales.txt", "r", encoding="utf-8") as file:
+# Reading the document
+with open("municipal_regulations.txt", "r", encoding="utf-8") as file:
     text = file.read()
 
 
-# Application du chunking sémantique
+# Applying the semantic chunking
 chunks = semantic_chunking(text)
 
 
-# Affichage des chunks
+# Displaying the chunks
 for i, chunk in enumerate(chunks):
     print(f"Chunk {i+1}:\n{chunk}\n")

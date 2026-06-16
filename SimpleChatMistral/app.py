@@ -3,139 +3,139 @@ import os
 from mistralai.client import MistralClient
 from mistralai.models.chat_completion import ChatMessage
 
-import logging # Ajout pour un meilleur débogage des erreurs API
+import logging # Added for better debugging of API errors
 from dotenv import load_dotenv
 load_dotenv()
 
-# Configuration du logging
+# Logging configuration
 logging.basicConfig(level=logging.INFO)
 
-# --- 1. Importation des bibliothèques et configuration ---
-st.set_page_config(page_title="Assistant Mairie", page_icon="🏛️")
+# --- 1. Importing the libraries and configuration ---
+st.set_page_config(page_title="City Hall Assistant", page_icon="🏛️")
 
-# Récupération de la clé API Mistral depuis les variables d'environnement
-# !! ATTENTION : Remplacez "VOTRE_CLE_API_MISTRAL_ICI" par votre clé si vous ne configurez pas de variable d'environnement !!
-# Il est FORTEMENT recommandé d'utiliser une variable d'environnement.
-api_key = os.environ.get("MISTRAL_API_KEY") 
+# Retrieving the Mistral API key from the environment variables
+# !! WARNING: Replace "YOUR_MISTRAL_API_KEY_HERE" with your key if you do not configure an environment variable !!
+# It is STRONGLY recommended to use an environment variable.
+api_key = os.environ.get("MISTRAL_API_KEY")
 
-# Vérification de la présence de la clé API
+# Check for the presence of the API key
 if not api_key:
-    st.error("Clé API Mistral non trouvée. Veuillez définir la variable d'environnement MISTRAL_API_KEY.")
-    # Vous pouvez aussi proposer une saisie directe (moins sécurisé)
-    # api_key = st.text_input("Entrez votre clé API Mistral:", type="password")
+    st.error("Mistral API key not found. Please set the MISTRAL_API_KEY environment variable.")
+    # You can also offer a direct input (less secure)
+    # api_key = st.text_input("Enter your Mistral API key:", type="password")
     # if not api_key:
-    st.stop() # Arrête l'exécution si la clé n'est pas fournie
+    st.stop() # Stop the execution if the key is not provided
 
 try:
     client = MistralClient(api_key=api_key)
-    model = "mistral-large-latest" # Ou un autre modèle comme "mistral-small-latest"
+    model = "mistral-large-latest" # Or another model such as "mistral-small-latest"
 except Exception as e:
-    st.error(f"Erreur lors de l'initialisation du client Mistral : {e}")
+    st.error(f"Error while initializing the Mistral client: {e}")
     st.stop()
 
-# --- 2. Initialisation de l'historique des conversations ---
+# --- 2. Initializing the conversation history ---
 if "messages" not in st.session_state:
-    # Ajout d'un message système initial (optionnel mais peut guider le modèle)
+    # Adding an initial system message (optional but it can guide the model)
     # st.session_state.messages = [
-    #     ChatMessage(role="system", content="Tu es un assistant virtuel pour la mairie. Réponds aux questions des citoyens de manière claire et concise.")
+    #     ChatMessage(role="system", content="You are a virtual assistant for City Hall. Answer residents' questions clearly and concisely.")
     # ]
-    # Initialisation avec le message d'accueil de l'assistant
-    st.session_state.messages = [{"role": "assistant", "content": "Bonjour, je suis l'assistant virtuel de la mairie. Comment puis-je vous aider aujourd'hui?"}]
+    # Initialization with the assistant's welcome message
+    st.session_state.messages = [{"role": "assistant", "content": "Hello, I am the City Hall virtual assistant. How can I help you today?"}]
 
-# --- 3. Construction du prompt avec l'historique ---
-def construire_prompt_session(messages, max_messages=10):
+# --- 3. Building the prompt with the history ---
+def build_session_prompt(messages, max_messages=10):
     """
-    Construit le prompt pour l'API Mistral en utilisant les messages récents.
+    Builds the prompt for the Mistral API using the recent messages.
 
     Args:
-        messages (list): Liste complète des messages de la session.
-        max_messages (int): Nombre maximum de messages récents à inclure.
+        messages (list): Full list of the session messages.
+        max_messages (int): Maximum number of recent messages to include.
 
     Returns:
-        list[ChatMessage]: Liste de messages formatés pour l'API.
+        list[ChatMessage]: List of messages formatted for the API.
     """
-    # Garde seulement les N derniers messages pour limiter la taille du prompt
+    # Keep only the last N messages to limit the prompt size
     recent_messages = messages[-max_messages:] if len(messages) > max_messages else messages
 
-    # Convertit les dictionnaires en objets ChatMessage
+    # Convert the dictionaries to ChatMessage objects
     formatted_messages = [
         ChatMessage(role=msg["role"], content=msg["content"])
         for msg in recent_messages
     ]
 
-    # Optionnel : Ajouter un message système au début si ce n'est pas déjà fait
+    # Optional: Add a system message at the beginning if not already done
     # if not any(m.role == "system" for m in formatted_messages):
-    #     formatted_messages.insert(0, ChatMessage(role="system", content="Tu es un assistant virtuel pour la mairie. Réponds aux questions des citoyens de manière claire et concise."))
+    #     formatted_messages.insert(0, ChatMessage(role="system", content="You are a virtual assistant for City Hall. Answer residents' questions clearly and concisely."))
 
-    logging.info(f"Messages envoyés à l'API : {formatted_messages}") # Pour débogage
+    logging.info(f"Messages sent to the API: {formatted_messages}") # For debugging
     return formatted_messages
 
-# --- 4. Génération de réponses via l'API Mistral ---
-def generer_reponse(prompt_messages):
+# --- 4. Generating answers via the Mistral API ---
+def generate_response(prompt_messages):
     """
-    Appelle l'API Mistral pour générer une réponse.
+    Calls the Mistral API to generate an answer.
 
     Args:
-        prompt_messages (list[ChatMessage]): Messages formatés à envoyer à l'API.
+        prompt_messages (list[ChatMessage]): Formatted messages to send to the API.
 
     Returns:
-        str: Le contenu de la réponse générée ou un message d'erreur.
+        str: The content of the generated answer or an error message.
     """
     try:
         response = client.chat(
             model=model,
             messages=prompt_messages,
-            # safe_prompt=True # Décommentez si vous voulez activer le mode sécurisé
+            # safe_prompt=True # Uncomment if you want to enable the safe mode
         )
-        # Vérification si la réponse contient des choix
+        # Check whether the response contains choices
         if response.choices:
             return response.choices[0].message.content
         else:
-            logging.error("L'API Mistral n'a retourné aucun choix.")
-            return "Je suis désolé, je n'ai pas pu générer de réponse. Aucune option retournée."
+            logging.error("The Mistral API returned no choice.")
+            return "I am sorry, I could not generate an answer. No option returned."
     except Exception as e:
-        logging.error(f"Erreur lors de l'appel à l'API Mistral: {e}")
-        # Fournir plus de détails si possible, par exemple sur les erreurs de quota
-        st.error(f"Erreur lors de la génération de la réponse: {e}")
-        return "Je suis désolé, j'ai rencontré un problème technique. Veuillez réessayer plus tard."
+        logging.error(f"Error while calling the Mistral API: {e}")
+        # Provide more details if possible, for example about quota errors
+        st.error(f"Error while generating the answer: {e}")
+        return "I am sorry, I ran into a technical problem. Please try again later."
 
-# --- 5. Interface utilisateur Streamlit ---
-st.title("🏛️ Assistant Virtuel de la Mairie")
-st.caption(f"Utilisation du modèle : {model}")
+# --- 5. Streamlit user interface ---
+st.title("🏛️ City Hall Virtual Assistant")
+st.caption(f"Using the model: {model}")
 
-# Affichage des messages précédents de l'historique
-# On itère sur une copie pour éviter les problèmes si la liste est modifiée pendant l'itération
+# Display the previous messages from the history
+# We iterate over a copy to avoid issues if the list is modified during iteration
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.write(message["content"])
 
-# --- 6. Traitement des entrées utilisateur et génération de réponses ---
-if prompt := st.chat_input("Posez votre question ici..."):
-    # Ajout du message de l'utilisateur à l'historique interne
+# --- 6. Processing user input and generating answers ---
+if prompt := st.chat_input("Ask your question here..."):
+    # Add the user message to the internal history
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # Affichage immédiat du message de l'utilisateur dans l'interface
+    # Immediately display the user message in the interface
     with st.chat_message("user"):
         st.write(prompt)
 
-    # Préparation du prompt avec l'historique récent pour l'API
-    prompt_messages_for_api = construire_prompt_session(st.session_state.messages)
+    # Prepare the prompt with the recent history for the API
+    prompt_messages_for_api = build_session_prompt(st.session_state.messages)
 
-    # Affichage d'un indicateur de chargement pendant la génération
+    # Display a loading indicator during generation
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
-        message_placeholder.text("...") # Indicateur visuel simple
+        message_placeholder.text("...") # Simple visual indicator
 
-        # Génération de la réponse via l'API
-        response_content = generer_reponse(prompt_messages_for_api)
+        # Generate the answer via the API
+        response_content = generate_response(prompt_messages_for_api)
 
-        # Affichage de la réponse complète
+        # Display the full answer
         message_placeholder.write(response_content)
 
-    # Ajout de la réponse de l'assistant à l'historique interne
+    # Add the assistant's answer to the internal history
     st.session_state.messages.append({"role": "assistant", "content": response_content})
 
-# Optionnel : Ajouter un bouton pour effacer l'historique
-if st.button("Effacer la conversation"):
-    st.session_state.messages = [{"role": "assistant", "content": "Bonjour, je suis l'assistant virtuel de la mairie. Comment puis-je vous aider aujourd'hui?"}]
-    st.rerun() # Recharge la page pour afficher l'état initial
+# Optional: Add a button to clear the history
+if st.button("Clear the conversation"):
+    st.session_state.messages = [{"role": "assistant", "content": "Hello, I am the City Hall virtual assistant. How can I help you today?"}]
+    st.rerun() # Reload the page to show the initial state

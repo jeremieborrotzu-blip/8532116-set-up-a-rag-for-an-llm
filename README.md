@@ -1,155 +1,154 @@
-# Assistant RAG avec Mistral
+# RAG Assistant with Mistral
 
-Ce projet implémente un assistant virtuel basé sur le modèle Mistral, utilisant la technique de Retrieval-Augmented Generation (RAG) pour fournir des réponses précises et contextuelles à partir d'une base de connaissances personnalisée.
+This project implements a virtual assistant based on the Mistral model, using the Retrieval-Augmented Generation (RAG) technique to provide accurate and contextual answers from a custom knowledge base.
 
-## Fonctionnalités
+## Features
 
-- 🔍 **Recherche sémantique** avec FAISS pour trouver les documents pertinents
-- 🧠 **Classification des requêtes** pour déterminer si une recherche RAG est nécessaire
-- 🤖 **Génération de réponses** avec les modèles Mistral (Small ou Large)
-- 📊 **Visualisation des feedbacks** avec graphiques et statistiques
-- ⚙️ **Paramètres personnalisables** (modèle, nombre de documents, score minimum)
+- 🔍 **Semantic search** with FAISS to find the relevant documents
+- 🧠 **Query classification** to determine whether a RAG search is necessary
+- 🤖 **Answer generation** with the Mistral models (Small or Large)
+- 📊 **Feedback visualization** with charts and statistics
+- ⚙️ **Customizable settings** (model, number of documents, minimum score)
 
-## Prérequis
+## Prerequisites
 
-- Python 3.9+ 
-- Clé API Mistral (obtenue sur [console.mistral.ai](https://console.mistral.ai/))
+- Python 3.9+
+- Mistral API key (obtained at [console.mistral.ai](https://console.mistral.ai/))
 
 ## Installation
 
-1. **Cloner le dépôt**
+1. **Clone the repository**
 
 ```bash
-git clone <url-du-repo>
-cd <nom-du-repo>
+git clone <repo-url>
+cd <repo-name>
 ```
 
-2. **Créer un environnement virtuel**
+2. **Create a virtual environment**
 
 ```bash
-# Création de l'environnement virtuel
+# Create the virtual environment
 python -m venv venv
 
-# Activation de l'environnement virtuel
-# Sur Windows
+# Activate the virtual environment
+# On Windows
 venv\Scripts\activate
-# Sur macOS/Linux
+# On macOS/Linux
 source venv/bin/activate
 ```
 
-3. **Installer les dépendances**
+3. **Install the dependencies**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-4. **Configurer la clé API**
+4. **Configure the API key**
 
-Créez un fichier `.env` à la racine du projet avec le contenu suivant :
+Create a `.env` file at the root of the project with the following content:
 
 ```
-MISTRAL_API_KEY=votre_clé_api_mistral
+MISTRAL_API_KEY=your_mistral_api_key
 ```
 
-## Structure du projet
+## Project structure
 
 ```
 .
-├── MistralChat.py          # Application Streamlit principale
-├── indexer.py              # Script pour indexer les documents
-├── inputs/                 # Dossier pour les documents sources
-├── vector_db/              # Dossier pour l'index FAISS et les chunks
-├── database/               # Base de données SQLite pour les interactions
-├── utils/                  # Modules utilitaires
-│   ├── config.py           # Configuration de l'application
-│   ├── database.py         # Gestion de la base de données
-│   ├── query_classifier.py # Classification des requêtes
-│   └── vector_store.py     # Gestion de l'index vectoriel
-└── pages/                  # Pages Streamlit supplémentaires
-    └── 1_Feedback_Viewer.py # Visualisation des feedbacks
+├── MistralChat.py          # Main Streamlit application
+├── indexer.py              # Script to index the documents
+├── inputs/                 # Folder for the source documents
+├── vector_db/              # Folder for the FAISS index and the chunks
+├── database/               # SQLite database for the interactions
+├── utils/                  # Utility modules
+│   ├── config.py           # Application configuration
+│   ├── database.py         # Database management
+│   ├── query_classifier.py # Query classification
+│   └── vector_store.py     # Vector index management
+└── pages/                  # Additional Streamlit pages
+    └── 1_Feedback_Viewer.py # Feedback visualization
 ```
 
-## Utilisation
+## Usage
 
-### 1. Ajouter des documents
+### 1. Add documents
 
-Placez vos documents dans le dossier `inputs/`. Les formats supportés sont :
+Place your documents in the `inputs/` folder. The supported formats are:
 - PDF
 - TXT
 - DOCX
 - CSV
 - JSON
 
-Vous pouvez organiser vos documents dans des sous-dossiers pour une meilleure organisation.
+You can organize your documents into subfolders for better organization.
 
-### 2. Indexer les documents
+### 2. Index the documents
 
-Exécutez le script d'indexation pour traiter les documents et créer l'index FAISS :
+Run the indexing script to process the documents and create the FAISS index:
 
 ```bash
 python indexer.py
 ```
 
-Ce script va :
-1. Charger les documents depuis le dossier `inputs/`
-2. Découper les documents en chunks
-3. Générer des embeddings avec Mistral
-4. Créer un index FAISS pour la recherche sémantique
-5. Sauvegarder l'index et les chunks dans le dossier `vector_db/`
+This script will:
+1. Load the documents from the `inputs/` folder
+2. Split the documents into chunks
+3. Generate embeddings with Mistral
+4. Create a FAISS index for the semantic search
+5. Save the index and the chunks in the `vector_db/` folder
 
-### 3. Lancer l'application
+### 3. Launch the application
 
 ```bash
 streamlit run MistralChat.py
 ```
 
-L'application sera accessible à l'adresse http://localhost:8501 dans votre navigateur.
+The application will be available at http://localhost:8501 in your browser.
 
-## Fonctionnalités principales
+## Main features
 
-### Classification des requêtes
+### Query classification
 
-L'application détermine automatiquement si une question nécessite une recherche RAG ou si une réponse directe du modèle Mistral est suffisante. Cela permet d'optimiser les performances et la pertinence des réponses.
+The application automatically determines whether a question requires a RAG search or whether a direct answer from the Mistral model is enough. This helps optimize the performance and the relevance of the answers.
 
-### Paramètres personnalisables
+### Customizable settings
 
-Dans la barre latérale, vous pouvez ajuster :
-- Le modèle Mistral (Small ou Large)
-- Le nombre de documents à récupérer (1-20)
-- Le score minimum de similarité (0-100%)
+In the sidebar, you can adjust:
+- The Mistral model (Small or Large)
+- The number of documents to retrieve (1-20)
+- The minimum similarity score (0-100%)
 
-### Feedback et analyse
+### Feedback and analysis
 
-L'application enregistre les interactions et les feedbacks des utilisateurs. Vous pouvez visualiser les statistiques dans la page "Feedback Viewer".
+The application logs the interactions and the users' feedback. You can view the statistics in the "Feedback Viewer" page.
 
-## Modules principaux
+## Main modules
 
 ### `utils/vector_store.py`
 
-Gère l'index vectoriel FAISS et la recherche sémantique :
-- Chargement et découpage des documents
-- Génération des embeddings avec Mistral
-- Création et interrogation de l'index FAISS
+Manages the FAISS vector index and the semantic search:
+- Loading and splitting the documents
+- Generating the embeddings with Mistral
+- Creating and querying the FAISS index
 
 ### `utils/query_classifier.py`
 
-Détermine si une requête nécessite une recherche RAG :
-- Analyse des mots-clés
-- Classification avec le modèle Mistral
-- Détection des questions spécifiques vs générales
+Determines whether a query requires a RAG search:
+- Keyword analysis
+- Classification with the Mistral model
+- Detection of specific vs general questions
 
 ### `utils/database.py`
 
-Gère la base de données SQLite pour les interactions :
-- Enregistrement des questions et réponses
-- Stockage des feedbacks utilisateurs
-- Récupération des statistiques
+Manages the SQLite database for the interactions:
+- Logging the questions and answers
+- Storing the users' feedback
+- Retrieving the statistics
 
-## Personnalisation
+## Customization
 
-Vous pouvez personnaliser l'application en modifiant les paramètres dans `utils/config.py` :
-- Modèles Mistral utilisés
-- Taille des chunks et chevauchement
-- Nombre de documents par défaut
-- Nom de la commune ou organisation
-
+You can customize the application by changing the settings in `utils/config.py`:
+- Mistral models used
+- Chunk size and overlap
+- Default number of documents
+- Town or organization name

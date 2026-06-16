@@ -3,73 +3,73 @@ import argparse
 import logging
 from typing import Optional
 
-from utils.config import INPUT_DIR # INPUT_DATA_URL (décommentez si besoin)
+from utils.config import INPUT_DIR # INPUT_DATA_URL (uncomment if needed)
 from utils.data_loader import download_and_extract_zip, load_and_parse_files
 from utils.vector_store import VectorStoreManager
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def run_indexing(input_directory: str, data_url: Optional[str] = None):
-    """Exécute le processus complet d'indexation."""
-    logging.info("--- Démarrage du processus d'indexation ---")
+    """Runs the full indexing process."""
+    logging.info("--- Starting the indexing process ---")
 
-    # --- Étape 1: Téléchargement et Extraction (Optionnel) ---
+    # --- Step 1: Download and Extract (Optional) ---
     if data_url:
-        logging.info(f"Tentative de téléchargement depuis l'URL: {data_url}")
+        logging.info(f"Attempting to download from the URL: {data_url}")
         success = download_and_extract_zip(data_url, input_directory)
         if not success:
-            logging.error("Échec du téléchargement ou de l'extraction. Arrêt.")
-            # Décider si on continue avec le contenu local existant ou si on arrête.
-            # Ici, on arrête pour éviter d'indexer des données potentiellement incomplètes/anciennes.
+            logging.error("Download or extraction failed. Stopping.")
+            # Decide whether to continue with the existing local content or to stop.
+            # Here we stop to avoid indexing potentially incomplete/old data.
             return
     else:
-        logging.info(f"Aucune URL fournie. Utilisation des fichiers locaux dans: {input_directory}")
+        logging.info(f"No URL provided. Using the local files in: {input_directory}")
 
-    # --- Étape 2: Chargement et Parsing des Fichiers ---
-    logging.info(f"Chargement et parsing des fichiers depuis: {input_directory}")
+    # --- Step 2: Loading and Parsing the Files ---
+    logging.info(f"Loading and parsing the files from: {input_directory}")
     documents = load_and_parse_files(input_directory)
 
     if not documents:
-        logging.warning("Aucun document n'a été chargé ou parsé. Vérifiez le contenu du dossier d'entrée.")
-        logging.info("--- Processus d'indexation terminé (aucun document traité) ---")
+        logging.warning("No document was loaded or parsed. Check the content of the input folder.")
+        logging.info("--- Indexing process finished (no document processed) ---")
         return
 
-    # --- Étape 3: Création/Mise à jour de l'index Vectoriel ---
-    logging.info("Initialisation du gestionnaire de Vector Store...")
-    vector_store = VectorStoreManager() # Le constructeur ne fait que charger s'il existe
+    # --- Step 3: Creating/Updating the Vector index ---
+    logging.info("Initializing the Vector Store manager...")
+    vector_store = VectorStoreManager() # The constructor only loads if it exists
 
-    logging.info("Construction de l'index Faiss (cela peut prendre du temps)...")
-    # Cette méthode va splitter, générer les embeddings, créer l'index et sauvegarder
+    logging.info("Building the Faiss index (this may take some time)...")
+    # This method will split, generate the embeddings, create the index and save
     vector_store.build_index(documents)
 
-    logging.info("--- Processus d'indexation terminé avec succès ---")
-    logging.info(f"Nombre de documents traités: {len(documents)}")
+    logging.info("--- Indexing process finished successfully ---")
+    logging.info(f"Number of documents processed: {len(documents)}")
     if vector_store.index:
-        logging.info(f"Nombre de chunks indexés: {vector_store.index.ntotal}")
+        logging.info(f"Number of indexed chunks: {vector_store.index.ntotal}")
     else:
-        logging.warning("L'index final n'a pas pu être créé ou est vide.")
+        logging.warning("The final index could not be created or is empty.")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Script d'indexation pour l'application RAG")
+    parser = argparse.ArgumentParser(description="Indexing script for the RAG application")
     parser.add_argument(
         "--input-dir",
         type=str,
         default=INPUT_DIR,
-        help=f"Répertoire contenant les fichiers sources (par défaut: {INPUT_DIR})"
+        help=f"Directory containing the source files (default: {INPUT_DIR})"
     )
     parser.add_argument(
         "--data-url",
         type=str,
-        # default=INPUT_DATA_URL, # Décommentez pour utiliser la valeur du .env par défaut
+        # default=INPUT_DATA_URL, # Uncomment to use the value from the .env by default
         default=None,
-        help="URL optionnelle pour télécharger et extraire un fichier inputs.zip"
+        help="Optional URL to download and extract an inputs.zip file"
     )
     args = parser.parse_args()
 
-    # Vérifier si l'URL est passée en argument, sinon prendre celle du .env (si définie)
+    # Check whether the URL is passed as an argument, otherwise take the one from .env (if set)
     # final_data_url = args.data_url if args.data_url is not None else INPUT_DATA_URL
-    # Simplification: on utilise seulement l'argument --data-url pour l'instant
+    # Simplification: we only use the --data-url argument for now
     final_data_url = args.data_url
 
     run_indexing(input_directory=args.input_dir, data_url=final_data_url)

@@ -4,89 +4,89 @@ import sys
 
 def convert_documents_to_markdown(input_dir, output_dir):
     """
-    Convertit tous les documents d'un répertoire d'entrée en Markdown
-    dans un répertoire de sortie en utilisant l'outil Docling via subprocess.
+    Converts all the documents in an input directory to Markdown
+    in an output directory using the Docling tool via subprocess.
 
     Args:
-        input_dir (str): Le chemin vers le répertoire contenant les documents source.
-        output_dir (str): Le chemin vers le répertoire où les fichiers Markdown seront sauvegardés.
+        input_dir (str): The path to the directory containing the source documents.
+        output_dir (str): The path to the directory where the Markdown files will be saved.
     """
-    # Vérifier si le répertoire d'entrée existe
+    # Check whether the input directory exists
     if not os.path.isdir(input_dir):
-        print(f"Erreur : Le répertoire d'entrée '{input_dir}' n'existe pas.")
+        print(f"Error: The input directory '{input_dir}' does not exist.")
         return
 
-    # Créer le répertoire de sortie s'il n'existe pas
+    # Create the output directory if it does not exist
     if not os.path.exists(output_dir):
         try:
             os.makedirs(output_dir)
-            print(f"Répertoire de sortie '{output_dir}' créé.")
+            print(f"Output directory '{output_dir}' created.")
         except OSError as e:
-            print(f"Erreur lors de la création du répertoire de sortie '{output_dir}': {e}")
+            print(f"Error while creating the output directory '{output_dir}': {e}")
             return
 
-    print(f"Début de la conversion des documents de '{input_dir}' vers '{output_dir}'...")
+    print(f"Starting the conversion of the documents from '{input_dir}' to '{output_dir}'...")
 
-    # Parcourir tous les fichiers dans le répertoire d'entrée
+    # Walk all the files in the input directory
     for filename in os.listdir(input_dir):
         input_path = os.path.join(input_dir, filename)
 
-        # S'assurer que c'est bien un fichier (et non un sous-répertoire)
+        # Make sure it is a file (and not a subdirectory)
         if os.path.isfile(input_path):
-            # Construire le nom du fichier de sortie avec l'extension .md
+            # Build the output file name with the .md extension
             base_name = os.path.splitext(filename)[0]
             output_filename = f"{base_name}.md"
             output_path = os.path.join(output_dir, output_filename)
 
-            print(f"\nTraitement de '{filename}'...")
+            print(f"\nProcessing '{filename}'...")
 
-            # Construire la commande docling
-            # Syntaxe : docling <input_file> -o <output_file> -f <format>
-            # Le format de sortie pour Markdown est 'md'
+            # Build the docling command
+            # Syntax: docling <input_file> -o <output_file> -f <format>
+            # The output format for Markdown is 'md'
             cmd = ['docling', input_path, '-o', output_path, '-f', 'md']
-            print(f"Exécution de la commande : {' '.join(cmd)}")
+            print(f"Running the command: {' '.join(cmd)}")
 
             try:
-                # Exécuter la commande docling
+                # Run the docling command
                 result = subprocess.run(cmd, check=True, capture_output=True, text=True, encoding='utf-8')
-                print(f"Succès : '{filename}' converti en '{output_filename}'.")
-                # Optionnel : afficher la sortie standard de docling si besoin
+                print(f"Success: '{filename}' converted to '{output_filename}'.")
+                # Optional: display the docling standard output if needed
                 # if result.stdout:
-                #     print(f"Sortie Docling : {result.stdout}")
+                #     print(f"Docling output: {result.stdout}")
 
             except subprocess.CalledProcessError as e:
-                # Erreur lors de l'exécution de docling
-                print(f"Erreur lors de la conversion de '{filename}'.")
-                print(f"Commande échouée : {' '.join(e.cmd)}")
-                print(f"Code de retour : {e.returncode}")
-                print(f"Sortie d'erreur (stderr) : {e.stderr}")
+                # Error while running docling
+                print(f"Error while converting '{filename}'.")
+                print(f"Failed command: {' '.join(e.cmd)}")
+                print(f"Return code: {e.returncode}")
+                print(f"Error output (stderr): {e.stderr}")
             except FileNotFoundError:
-                # Erreur si la commande 'docling' n'est pas trouvée
-                print(f"Erreur : La commande 'docling' n'a pas été trouvée.")
-                print("Vérifiez que Docling est correctement installé et que son exécutable est dans le PATH système.")
-                print("Installation : pip install docling")
-                return # Arrêter le script si docling n'est pas trouvé
+                # Error if the 'docling' command is not found
+                print(f"Error: The 'docling' command was not found.")
+                print("Check that Docling is correctly installed and that its executable is in the system PATH.")
+                print("Installation: pip install docling")
+                return # Stop the script if docling is not found
             except Exception as e:
-                # Capturer toute autre exception potentielle
-                print(f"Une erreur inattendue est survenue lors du traitement de '{filename}': {e}")
+                # Catch any other potential exception
+                print(f"An unexpected error occurred while processing '{filename}': {e}")
 
-    print(f"\nConversion terminée. Les fichiers Markdown se trouvent dans '{output_dir}'.")
+    print(f"\nConversion finished. The Markdown files are in '{output_dir}'.")
 
 # --- Configuration ---
-# Remplacez ces chemins par les vôtres
-# INPUT_DIRECTORY : Le dossier où vous avez décompressé 'inputs.zip'
-# OUTPUT_DIRECTORY : Le dossier où vous voulez sauvegarder les fichiers .md
+# Replace these paths with your own
+# INPUT_DIRECTORY: The folder where you unzipped 'inputs.zip'
+# OUTPUT_DIRECTORY: The folder where you want to save the .md files
 
-INPUT_DIRECTORY = 'inputs'  # Adaptez si vous avez décompressé ailleurs
-OUTPUT_DIRECTORY = 'markdown_outputs' # Nom du dossier de sortie
+INPUT_DIRECTORY = 'inputs'  # Adapt if you unzipped elsewhere
+OUTPUT_DIRECTORY = 'markdown_outputs' # Output folder name
 
-# --- Exécution du script ---
+# --- Running the script ---
 if __name__ == "__main__":
-    # Vérifier si Python 3 est utilisé (subprocess.run a des arguments différents en Python 2)
+    # Check whether Python 3 is used (subprocess.run has different arguments in Python 2)
     if sys.version_info < (3, 5):
-        print("Erreur : Ce script nécessite Python 3.5 ou une version ultérieure.")
+        print("Error: This script requires Python 3.5 or a later version.")
     else:
-        # Donner le chemin absolu pour éviter les ambiguïtés
+        # Give the absolute path to avoid ambiguities
         abs_input_dir = os.path.abspath(INPUT_DIRECTORY)
         abs_output_dir = os.path.abspath(OUTPUT_DIRECTORY)
         convert_documents_to_markdown(abs_input_dir, abs_output_dir)

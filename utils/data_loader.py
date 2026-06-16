@@ -7,146 +7,146 @@ from pathlib import Path
 from typing import List, Dict, Optional
 import logging
 
-# Configuration du logging
+# Logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# --- Fonctions d'extraction de texte (similaires à votre simple_indexer.py) ---
+# --- Text extraction functions (similar to your simple_indexer.py) ---
 
 def extract_text_from_pdf(file_path: str) -> Optional[str]:
-    """Extrait le texte d'un fichier PDF."""
+    """Extracts the text from a PDF file."""
     try:
         from PyPDF2 import PdfReader
         reader = PdfReader(file_path)
         text = "".join(page.extract_text() + "\n" for page in reader.pages if page.extract_text())
-        logging.info(f"Texte extrait de PDF: {file_path} ({len(text)} caractères)")
+        logging.info(f"Text extracted from PDF: {file_path} ({len(text)} characters)")
         return text
     except Exception as e:
-        logging.error(f"Erreur extraction PDF {file_path}: {e}")
+        logging.error(f"PDF extraction error {file_path}: {e}")
         return None
 
 def extract_text_from_docx(file_path: str) -> Optional[str]:
-    """Extrait le texte d'un fichier Word DOCX."""
+    """Extracts the text from a Word DOCX file."""
     try:
         import docx
         doc = docx.Document(file_path)
         text = "\n".join(para.text for para in doc.paragraphs if para.text)
-        logging.info(f"Texte extrait de DOCX: {file_path} ({len(text)} caractères)")
+        logging.info(f"Text extracted from DOCX: {file_path} ({len(text)} characters)")
         return text
     except Exception as e:
-        logging.error(f"Erreur extraction DOCX {file_path}: {e}")
+        logging.error(f"DOCX extraction error {file_path}: {e}")
         return None
 
 def extract_text_from_txt(file_path: str) -> Optional[str]:
-    """Extrait le texte d'un fichier texte brut."""
+    """Extracts the text from a plain text file."""
     try:
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             text = f.read()
-        logging.info(f"Texte extrait de TXT: {file_path} ({len(text)} caractères)")
+        logging.info(f"Text extracted from TXT: {file_path} ({len(text)} characters)")
         return text
     except Exception as e:
-        logging.error(f"Erreur extraction TXT {file_path}: {e}")
+        logging.error(f"TXT extraction error {file_path}: {e}")
         return None
 
 def extract_text_from_csv(file_path: str) -> Optional[str]:
-    """Extrait le texte d'un fichier CSV (convertit en string)."""
+    """Extracts the text from a CSV file (converts to string)."""
     try:
         import pandas as pd
-        # Lire avec une gestion d'erreur d'encodage plus robuste
+        # Read with more robust encoding error handling
         try:
             df = pd.read_csv(file_path)
         except UnicodeDecodeError:
-            df = pd.read_csv(file_path, encoding='latin1') # Essayer un autre encodage courant
+            df = pd.read_csv(file_path, encoding='latin1') # Try another common encoding
         except Exception as read_e:
-             logging.warning(f"Erreur lecture CSV {file_path}: {read_e}. Tentative avec séparateur ';'")
+             logging.warning(f"CSV read error {file_path}: {read_e}. Trying with separator ';'")
              try:
                  df = pd.read_csv(file_path, sep=';')
              except UnicodeDecodeError:
                   df = pd.read_csv(file_path, sep=';', encoding='latin1')
              except Exception as read_e2:
-                  logging.error(f"Impossible de lire le CSV {file_path}: {read_e2}")
+                  logging.error(f"Cannot read the CSV {file_path}: {read_e2}")
                   return None
 
         text = df.to_string()
-        logging.info(f"Texte extrait de CSV: {file_path} ({len(text)} caractères)")
+        logging.info(f"Text extracted from CSV: {file_path} ({len(text)} characters)")
         return text
     except ImportError:
-        logging.warning("Pandas non installé. Impossible de lire les fichiers CSV.")
+        logging.warning("Pandas not installed. Cannot read CSV files.")
         return None
     except Exception as e:
-        logging.error(f"Erreur extraction CSV {file_path}: {e}")
+        logging.error(f"CSV extraction error {file_path}: {e}")
         return None
 
 def extract_text_from_excel(file_path: str) -> Optional[str]:
-    """Extrait le texte d'un fichier Excel (convertit en string)."""
+    """Extracts the text from an Excel file (converts to string)."""
     try:
         import pandas as pd
-        df = pd.read_excel(file_path, sheet_name=None) # Lire toutes les feuilles
+        df = pd.read_excel(file_path, sheet_name=None) # Read all sheets
         text = ""
-        if isinstance(df, dict): # Si plusieurs feuilles
+        if isinstance(df, dict): # If multiple sheets
              for sheet_name, sheet_df in df.items():
-                 text += f"--- Feuille: {sheet_name} ---\n{sheet_df.to_string()}\n\n"
-        else: # Si une seule feuille
+                 text += f"--- Sheet: {sheet_name} ---\n{sheet_df.to_string()}\n\n"
+        else: # If a single sheet
              text = df.to_string()
-        logging.info(f"Texte extrait de Excel: {file_path} ({len(text)} caractères)")
+        logging.info(f"Text extracted from Excel: {file_path} ({len(text)} characters)")
         return text
     except ImportError:
-        logging.warning("Pandas ou openpyxl non installé. Impossible de lire les fichiers Excel.")
+        logging.warning("Pandas or openpyxl not installed. Cannot read Excel files.")
         return None
     except Exception as e:
-        logging.error(f"Erreur extraction Excel {file_path}: {e}")
+        logging.error(f"Excel extraction error {file_path}: {e}")
         return None
 
-# --- Fonctions de chargement ---
+# --- Loading functions ---
 
 def download_and_extract_zip(url: str, output_dir: str) -> bool:
-    """Télécharge un fichier ZIP depuis une URL et l'extrait."""
+    """Downloads a ZIP file from a URL and extracts it."""
     if not url:
-        logging.warning("Aucune URL fournie pour le téléchargement.")
+        logging.warning("No URL provided for the download.")
         return False
     try:
-        logging.info(f"Téléchargement des données depuis {url}...")
+        logging.info(f"Downloading the data from {url}...")
         response = requests.get(url, stream=True)
-        response.raise_for_status() # Vérifie les erreurs HTTP
+        response.raise_for_status() # Check for HTTP errors
 
         output_path = Path(output_dir)
-        output_path.mkdir(parents=True, exist_ok=True) # Crée le dossier de sortie
+        output_path.mkdir(parents=True, exist_ok=True) # Create the output folder
 
         with zipfile.ZipFile(io.BytesIO(response.content)) as z:
-            logging.info(f"Extraction du contenu dans {output_dir}...")
+            logging.info(f"Extracting the content into {output_dir}...")
             z.extractall(output_dir)
-        logging.info("Téléchargement et extraction terminés.")
+        logging.info("Download and extraction completed.")
         return True
     except requests.exceptions.RequestException as e:
-        logging.error(f"Erreur de téléchargement: {e}")
+        logging.error(f"Download error: {e}")
         return False
     except zipfile.BadZipFile:
-        logging.error("Le fichier téléchargé n'est pas un ZIP valide.")
+        logging.error("The downloaded file is not a valid ZIP.")
         return False
     except Exception as e:
-        logging.error(f"Erreur inattendue lors du téléchargement/extraction: {e}")
+        logging.error(f"Unexpected error during the download/extraction: {e}")
         return False
 
 def load_and_parse_files(input_dir: str) -> List[Dict[str, any]]:
     """
-    Charge et parse récursivement les fichiers d'un répertoire.
-    Retourne une liste de dictionnaires, chacun représentant un document.
+    Recursively loads and parses the files in a directory.
+    Returns a list of dictionaries, each representing a document.
     """
     documents = []
     input_path = Path(input_dir)
     if not input_path.is_dir():
-        logging.error(f"Le répertoire d'entrée '{input_dir}' n'existe pas.")
+        logging.error(f"The input directory '{input_dir}' does not exist.")
         return []
 
-    logging.info(f"Parcours du répertoire source: {input_dir}")
-    for file_path in input_path.rglob("*.*"): # Parcourt tous les fichiers récursivement
+    logging.info(f"Walking the source directory: {input_dir}")
+    for file_path in input_path.rglob("*.*"): # Walks all files recursively
         if file_path.is_file():
             relative_path = file_path.relative_to(input_path)
-            # Le nom du dossier source est le premier composant du chemin relatif
+            # The source folder name is the first component of the relative path
             source_folder = relative_path.parts[0] if len(relative_path.parts) > 1 else "root"
             ext = file_path.suffix.lower()
             text = None
 
-            logging.debug(f"Traitement du fichier: {relative_path} (Dossier source: {source_folder})")
+            logging.debug(f"Processing file: {relative_path} (Source folder: {source_folder})")
 
             if ext == ".pdf":
                 text = extract_text_from_pdf(str(file_path))
@@ -159,21 +159,21 @@ def load_and_parse_files(input_dir: str) -> List[Dict[str, any]]:
             elif ext in [".xlsx", ".xls"]:
                 text = extract_text_from_excel(str(file_path))
             else:
-                logging.warning(f"Type de fichier non supporté ignoré: {relative_path}")
+                logging.warning(f"Unsupported file type ignored: {relative_path}")
                 continue
 
             if text:
                 documents.append({
                     "page_content": text,
                     "metadata": {
-                        "source": str(relative_path), # Chemin relatif comme source
+                        "source": str(relative_path), # Relative path as the source
                         "filename": file_path.name,
-                        "category": source_folder, # Utilise le nom du dossier comme catégorie/metadata
-                        "full_path": str(file_path.resolve()) # Chemin absolu si besoin
+                        "category": source_folder, # Uses the folder name as category/metadata
+                        "full_path": str(file_path.resolve()) # Absolute path if needed
                     }
                 })
             else:
-                 logging.warning(f"Aucun texte n'a pu être extrait de {relative_path}")
+                 logging.warning(f"No text could be extracted from {relative_path}")
 
-    logging.info(f"{len(documents)} documents chargés et parsés.")
+    logging.info(f"{len(documents)} documents loaded and parsed.")
     return documents
